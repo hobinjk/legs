@@ -24,6 +24,8 @@ function startLegsGame() {
     robot.add(world);
 
     this.frame(0, 0, 8, 6);
+  }, {
+    hideGUI: true
   });
 }
 
