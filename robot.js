@@ -5,19 +5,23 @@
 
 /**
  * @constructor
+ * @param {number} x
+ * @param {number} y
  * @param {Body} bodyInfo
- * @param {Leg} frontUpperLegInfo
- * @param {Leg} frontLowerLegInfo
- * @param {Leg} backUpperLegInfo
- * @param {Leg} backLowerLegInfo
+ * @param {LegInfo} frontUpperLegInfo
+ * @param {LegInfo} frontLowerLegInfo
+ * @param {LegInfo} backUpperLegInfo
+ * @param {LegInfo} backLowerLegInfo
  */
-function Robot(bodyInfo, frontUpperLegInfo, frontLowerLegInfo,
-                         backUpperLegInfo, backLowerLegInfo) {
+function Robot(x, y, bodyInfo, frontUpperLegInfo, frontLowerLegInfo,
+               backUpperLegInfo, backLowerLegInfo) {
+  this.x = x;
+  this.y = y;
   this.bodyInfo = bodyInfo;
-  this.frontUpperLegInfo = frontUpperLegInfo;
-  this.frontLowerLegInfo = frontLowerLegInfo;
-  this.backUpperLegInfo = backUpperLegInfo;
-  this.backLowerLegInfo = backLowerLegInfo;
+  this.frontUpperLeg = new Leg(frontUpperLegInfo);
+  this.frontLowerLeg = new Leg(frontLowerLegInfo);
+  this.backUpperLeg = new Leg(backUpperLegInfo);
+  this.backLowerLeg = new Leg(backLowerLegInfo);
 }
 
 /**
@@ -25,50 +29,58 @@ function Robot(bodyInfo, frontUpperLegInfo, frontLowerLegInfo,
  * @param {p2.World} world
  */
 Robot.prototype.add = function(world) {
-  var body = new p2.Body({mass: 1, position: [-3, 1]});
+  var body = new p2.Body({mass: 1, position: [this.x, this.y]});
   var bodyShape = new p2.Rectangle(this.bodyInfo.width, this.bodyInfo.height);
   body.addShape(bodyShape);
   world.addBody(body);
 
-  var wheelY = body.position[1] - this.bodyInfo.height / 4;
-  var frontWheelBody = new p2.Body({
-    mass: 1,
-    position: [body.position[0] + this.bodyInfo.width / 2, wheelY]
-  });
-  var backWheelBody = new p2.Body({
-    mass: 1,
-    position: [body.position[0] - this.bodyInfo.width / 2, wheelY]
-  });
+  var wheelY = body.position[1] - this.bodyInfo.height / 2 + this.frontUpperLeg.height / 2;
 
-  var frontWheelShape = new p2.Rectangle(this.frontUpperLegInfo.width,
-                                         this.frontUpperLegInfo.height);
-  var backWheelShape = new p2.Rectangle(this.backUpperLegInfo.width,
-                                        this.backUpperLegInfo.height);
+  var frontUpperX = body.position[0] + this.bodyInfo.width / 2 + this.frontUpperLeg.width / 2 - this.frontUpperLeg.height;
+  this.frontUpperLeg.add(world, frontUpperX, wheelY);
+  this.frontLowerLeg.add(world, frontUpperX + this.frontLowerLeg.width / 2 + this.frontUpperLeg.width / 2 - this.frontLowerLeg.height, wheelY);
 
-  frontWheelBody.addShape(frontWheelShape);
-  backWheelBody.addShape(backWheelShape);
+  var backUpperX = body.position[0] - this.bodyInfo.width / 2 - this.backUpperLeg.width / 2 + this.backUpperLeg.height;
+  this.backUpperLeg.add(world, backUpperX, wheelY);
+  this.backLowerLeg.add(world, backUpperX - this.backLowerLeg.width / 2 - this.backUpperLeg.width / 2 + this.backLowerLeg.height,
+                         wheelY);
 
-  world.addBody(frontWheelBody);
-  world.addBody(backWheelBody);
+  this.backUpperLeg.attach(body,
+                           -this.bodyInfo.width / 2 + this.backUpperLeg.height / 2,
+                           -this.bodyInfo.height / 2 + this.backUpperLeg.height / 2,
+                           false);
 
-  var backRevolute = new p2.RevoluteConstraint(body, backWheelBody, {
-    localPivotA: [-this.bodyInfo.width / 2 + this.bodyInfo.height / 4, -this.bodyInfo.height / 4],
-    localPivotB: [this.backUpperLegInfo.width / 2, 0],
-    collideConnected: false
-  });
+  this.backLowerLeg.attach(
+      this.backUpperLeg.body,
+      -this.backUpperLeg.width / 2 + this.backLowerLeg.height / 2,
+      0,
+      true
+  );
 
-  var frontRevolute = new p2.RevoluteConstraint(body, frontWheelBody, {
-    localPivotA: [this.bodyInfo.width / 2 - this.bodyInfo.height / 4, -this.bodyInfo.height / 4],
-    localPivotB: [this.frontUpperLegInfo.width / 2, 0],
-    collideConnected: false
-  });
+  this.frontUpperLeg.attach(body,
+                            this.bodyInfo.width / 2 - this.frontUpperLeg.height / 2,
+                            -this.bodyInfo.height / 2 + this.frontUpperLeg.height / 2,
+                            true);
 
-  world.addConstraint(backRevolute);
-  world.addConstraint(frontRevolute);
+  this.frontLowerLeg.attach(
+      this.frontUpperLeg.body,
+      this.frontUpperLeg.width / 2 - this.frontLowerLeg.height / 2,
+      0,
+      false
+  );
 
-  backRevolute.enableMotor();
-  backRevolute.setMotorSpeed(1.7);
+  this.update();
+};
 
-  frontRevolute.enableMotor();
-  frontRevolute.setMotorSpeed(1.7);
+/**
+ * Update legs, ideally each frame.
+ */
+Robot.prototype.update = function() {
+  this.frontUpperLeg.update();
+  this.backUpperLeg.update();
+
+  this.frontLowerLeg.update();
+  this.backLowerLeg.update();
+
+  window.requestAnimationFrame(this.update.bind(this));
 };
